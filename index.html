@@ -955,7 +955,7 @@ const stnLayer = L.layerGroup().addTo(map);
 function updateStations() {
   stnLayer.clearLayers();
   const z = map.getZoom();
-  if (z < 11 || !STN.length) return;
+  if (z < 13 || !STN.length) return;
   const b = map.getBounds().pad(.2);
   let n = 0;
   for (const [nm, la, lo, ls] of STN) {
