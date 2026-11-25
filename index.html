@@ -1257,10 +1257,10 @@ $("list").addEventListener("click", e => {
 // ---------- 검색 ----------
 const q = $("q");
 let qTimer;
-q.addEventListener("input", () => { $("qx").hidden = !q.value; clearTimeout(qTimer); qTimer = setTimeout(() => render(true), 300); });
+q.addEventListener("input", () => { $("qx").hidden = !q.value; clearTimeout(qTimer); qTimer = setTimeout(() => render(!!q.value.trim()), 300); });
 q.addEventListener("focus", () => { if (MOBILE) { if (detailOn) closeDetail(); setSheet("half"); } });
 q.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(qTimer); render(true); q.blur(); if (MOBILE) setSheet("half"); } });
-$("qx").onclick = () => { q.value = ""; $("qx").hidden = true; render(true); if (MOBILE) setSheet("peek"); };
+$("qx").onclick = () => { q.value = ""; $("qx").hidden = true; render(false); if (MOBILE) setSheet("peek"); };
 $("region").addEventListener("change", () => render(true));
 
 measureTop();
