@@ -661,6 +661,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 		print-color-adjust: exact;
 		}
 	}
+.stn{position:relative}
+.stn i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid;box-sizing:border-box;box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+.stn i.x{left:-6px;top:-6px;width:12px;height:12px;border-width:3px}
+.stn span{position:absolute;left:9px;top:-8px;white-space:nowrap;display:flex;align-items:center;gap:2px;font:700 12px/1 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;color:#1a1a1a;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 3px #fff}
+.stn em{font-style:normal;font-size:9.5px;font-weight:800;color:#fff;min-width:15px;height:15px;padding:0 4px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;text-shadow:none;box-sizing:border-box;letter-spacing:-.03em}
+.stn b{margin-left:2px}
 </style>
 <style>.leaflet-cluster-anim .leaflet-marker-icon, .leaflet-cluster-anim .leaflet-marker-shadow {
 	-webkit-transition: -webkit-transform 0.3s ease-out, opacity 0.3s ease-in;
@@ -888,7 +894,7 @@ PLACES.forEach(p => { if (!topOf[p.region] || topOf[p.region].votes < p.votes) t
 const sidoOf = r => (r || "").split(" ")[0];
 
 const map = L.map("map", {zoomControl: !MOBILE, maxZoom: 19, minZoom: 6}).setView([36.3, 127.8], 7);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · 역 정보: 공공데이터포털'}).addTo(map);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const BASEMAP = {"type":"FeatureCollection","features":[]};
 const landLayer = L.geoJSON(BASEMAP, {interactive: false, style: f => ({
@@ -936,6 +942,34 @@ try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rest
 const cluster = L.markerClusterGroup({showCoverageOnHover: false, maxClusterRadius: 45,
   iconCreateFunction: c => L.divIcon({html: `<div>${c.getChildCount()}</div>`, className: "marker-cluster", iconSize: [38, 38]})});
 map.addLayer(cluster);
+
+// 지하철역 레이어 (전국 도시철도 역사정보 표준데이터 기반, stations.json)
+const LINE = {"1":["#0052A4","1"],"2":["#00A84D","2"],"3":["#EF7C1C","3"],"4":["#00A5DE","4"],"5":["#996CAC","5"],"6":["#CD7C2F","6"],"7":["#747F00","7"],"8":["#E6186C","8"],"9":["#AA9872","9"],
+  "경의":["#77C4A3","경의중앙"],"경춘":["#0C8E72","경춘"],"수인":["#F5A200","수인분당"],"신분":["#D4003B","신분당"],"경강":["#003DA5","경강"],"서해":["#8FC31F","서해"],"공항":["#0090D2","공항"],
+  "우이":["#B0CE18","우이"],"신림":["#6789CA","신림"],"용인":["#56AD2D","에버라인"],"의정":["#FDA600","의정부"],"김포":["#AD8605","김포"],"인1":["#7CA8D5","인천1"],"인2":["#ED8B00","인천2"],"자기":["#FFB300","자기부상"],
+  "부1":["#F06A00","1"],"부2":["#81BF48","2"],"부3":["#BB8C00","3"],"부4":["#217DCB","4"],"김해":["#8652A1","김해"],"동해":["#0054A6","동해"],
+  "대1":["#D93F5C","1"],"대2":["#00AA80","2"],"대3":["#FFB100","3"],"대경":["#2C7D4F","대경"],"전1":["#007448","1"],"광1":["#009088","1"]};
+map.createPane("stn"); map.getPane("stn").style.zIndex = 460; map.getPane("stn").style.pointerEvents = "none";
+let STN = [];
+const stnLayer = L.layerGroup().addTo(map);
+function updateStations() {
+  stnLayer.clearLayers();
+  const z = map.getZoom();
+  if (z < 11 || !STN.length) return;
+  const b = map.getBounds().pad(.2);
+  let n = 0;
+  for (const [nm, la, lo, ls] of STN) {
+    if (!b.contains([la, lo])) continue;
+    if (++n > 450) break;
+    const multi = ls.length > 1, lc = k => (LINE[k] || ["#555", k]);
+    const label = z >= 13;
+    const chips = label ? ls.map(k => `<em style="background:${lc(k)[0]}">${lc(k)[1]}</em>`).join("") : "";
+    const html = `<i class="${multi ? "x" : ""}" style="border-color:${multi ? "#2b2b2b" : lc(ls[0])[0]}"></i>` + (label ? `<span>${chips}<b>${esc(nm)}</b></span>` : "");
+    L.marker([la, lo], {pane: "stn", interactive: false, keyboard: false, icon: L.divIcon({className: "stn", html, iconSize: [0, 0]})}).addTo(stnLayer);
+  }
+}
+fetch("stations.json?v=1").then(r => r.json()).then(d => { STN = d; updateStations(); }).catch(() => {});
+map.on("zoomend moveend", updateStations);
 const maxV = Math.max(1, ...PLACES.map(p => p.votes));
 
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
