@@ -831,6 +831,8 @@ select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:
   #detail.on{transform:translateY(var(--doff,0px))}
   #detail:not(.on){transform:translateY(calc(105% + var(--tabh)))}
   #detail.drag{transition:none}
+  #detail.peek #dbody{overflow:hidden}
+  #dbody .pop h3{cursor:pointer}
   #dhead{display:flex;align-items:center;justify-content:center;position:relative;padding:9px 0 2px;touch-action:none}
   #dhead i{display:block;width:44px;height:5px;border-radius:5px;background:var(--muted);opacity:.45}
   #dclose{position:absolute;right:8px;top:4px;width:40px;height:40px;border:0;background:none;font-size:22px;color:var(--muted);cursor:pointer}
@@ -1134,14 +1136,26 @@ function select(p) {
   const prev = selId; selId = p ? p.id : null;
   [prev, selId].forEach(i => i != null && PLACES[i] && PLACES[i].marker.setIcon(pinIcon(PLACES[i])));
 }
+let detPeek = 0, detFull = false;
+function detPeekOff() {
+  const t = $("dbody").querySelector(".tags"); if (!t) return 0;
+  return Math.max(0, Math.round(det.getBoundingClientRect().bottom - t.getBoundingClientRect().bottom - 8));
+}
+function setDet(full) {
+  detFull = full; det.classList.toggle("peek", !full);
+  if (!full) $("dbody").scrollTop = 0;
+  det.style.setProperty("--doff", (full ? 0 : detPeek) + "px");
+}
 function openDetail(p) {
   if (!MOBILE) { cluster.zoomToShowLayer(p.marker, () => p.marker.openPopup()); return; }
   select(p);
   $("dbody").innerHTML = ""; $("dbody").appendChild(detail(p)); $("dbody").scrollTop = 0;
-  det.style.setProperty("--doff", "0px"); det.classList.add("on"); side.classList.add("away");
+  $("dbody").querySelector("h3").onclick = () => setDet(!detFull);
+  det.classList.add("on"); side.classList.add("away");
+  detPeek = detPeekOff(); setDet(false);
   detailOn = true;
   requestAnimationFrame(() => {
-    const z = Math.max(map.getZoom(), 13), h = det.offsetHeight;
+    const z = Math.max(map.getZoom(), 13), h = det.offsetHeight - detPeek;
     const pt = map.project([p.lat, p.lng], z).add([0, (h - $("top").offsetHeight) / 2]);
     map.setView(map.unproject(pt, z), z, {animate: true});
   });
@@ -1152,9 +1166,15 @@ function closeDetail() {
 }
 $("dclose").onclick = () => closeDetail();
 if (MOBILE) {
-  const end = (moved, dy) => { det.classList.remove("drag"); if (moved && dy > 90) closeDetail(); else det.style.setProperty("--doff", "0px"); };
+  const end = (moved, dy) => {
+    det.classList.remove("drag");
+    if (!moved) return setDet(!detFull);
+    if (dy < -40) return setDet(true);
+    if (dy > 90) return detFull ? setDet(false) : closeDetail();
+    setDet(detFull);
+  };
   end.start = () => det.classList.add("drag");
-  dragSheet($("dhead"), () => 0, px => det.style.setProperty("--doff", Math.max(0, px) + "px"), end);
+  dragSheet($("dhead"), () => detFull ? 0 : detPeek, px => det.style.setProperty("--doff", Math.max(0, px) + "px"), end);
 }
 
 // ---------- 필터·정렬·탭 ----------
